@@ -9,6 +9,14 @@ locals {
   maxNumberOfServer = 10
 }
 
+locals {
+    countOfItems = {
+        disks = 13
+        servers = 22
+        
+    }
+}
+
 
 variable "number-of-servers" {
   type = number
@@ -34,4 +42,9 @@ variable "list-of-names" {
 
 output "list-of-names" {
   value = var.list-of-names
+}
+
+
+output "key-from-map" {
+  value = lookup(local.countOfItems, "disks")
 }
