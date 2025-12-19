@@ -8,76 +8,12 @@ terraform {
   }
 }
 
-
-provider "aws" {
-
+module "web_server" {
+  source = "./modules/web-server"
+  server_version = 1
+  number_of_servers = 4
 }
 
-variable "number_of_servers" {
-  type = number
-  default = 2
-}
-
-
-variable "name_prefix" {
-  type    = string
-  default = "awsninja3"
-}
-
-variable "server_version" {
-  type = string
-  validation {
-    condition     = var.server_version == "1" || var.server_version == "2"
-    error_message = "wrong version"
-  }
-}
-
-data "aws_ami" "server_ami" {
-  filter {
-    name   = "name"
-    values = ["ubuntu-linux-apache-${var.server_version}-*"]
-  }
-}
-
-resource "aws_instance" "app_server" {
-  ami           = data.aws_ami.server_ami.id
-  instance_type = "t3.micro"
-  count = var.number_of_servers
-
-  vpc_security_group_ids = [
-    aws_security_group.allow_all.id
-  ]
-
-  tags = {
-    Name = "${var.name_prefix}-app-server-${count.index}"
-  }
-}
-
-resource "aws_security_group" "allow_all" {
-  name = "${var.name_prefix}-public-access"
-  ingress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  egress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-}
-
-output "server_ip" {
-  # value = aws_instance.app_server[*].public_ip
-  # value = aws_instance.app_server[*].tags("Name")
-    value = formatlist(
-        "Machin with name: %s has public ip %s",
-        aws_instance.app_server[*].tags["Name"],
-        aws_instance.app_server[*].public_ip,
-    )
+output "servers" {
+  value = module.web_server.server_ip
 }
