@@ -1,23 +1,77 @@
 terraform {
+  required_version = "~>1.14.0"
   required_providers {
     aws = {
-      source = "hashicorp/aws"
+      source  = "hashicorp/aws"
       version = "6.25.0"
     }
   }
 }
 
+
 provider "aws" {
-  # Configuration options
+
 }
 
-resource "aws_s3_bucket" "my-bucket" {
-  bucket_prefix = "awsninja-3"
+variable "number_of_servers" {
+  type = number
+  default = 2
 }
 
-resource "aws_s3_object" "Object" {
-  for_each = fileset(path.module,"messages/*")
-  bucket = aws_s3_bucket.my-bucket.bucket
-  key = basename(each.key)
-  source = each.key
+
+variable "name_prefix" {
+  type    = string
+  default = "awsninja3"
+}
+
+variable "server_version" {
+  type = string
+  validation {
+    condition     = var.server_version == "1" || var.server_version == "2"
+    error_message = "wrong version"
+  }
+}
+
+data "aws_ami" "server_ami" {
+  filter {
+    name   = "name"
+    values = ["ubuntu-linux-apache-${var.server_version}-*"]
+  }
+}
+
+resource "aws_instance" "app_server" {
+  ami           = data.aws_ami.server_ami.id
+  instance_type = "t3.micro"
+  count = var.number_of_servers
+
+  vpc_security_group_ids = [
+    aws_security_group.allow_all.id
+  ]
+
+  tags = {
+    Name = "${var.name_prefix}-app-server-${count.index}"
+  }
+}
+
+resource "aws_security_group" "allow_all" {
+  name = "${var.name_prefix}-public-access"
+  ingress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+}
+
+output "server_ip" {
+  value = aws_instance.app_server[*].public_ip
 }
